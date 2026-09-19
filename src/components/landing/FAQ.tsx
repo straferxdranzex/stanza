@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { BrandLogo } from '@/components/shared/BrandLogo'
 
 const faqs = [
   {
@@ -110,11 +111,8 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center">
-                <span className="text-black font-bold text-sm">S</span>
-              </div>
-              <span className="font-semibold text-white">Stanza</span>
+            <div className="mb-4">
+              <BrandLogo size="lg" href={null} />
             </div>
             <p className="text-sm text-white/40 leading-relaxed mb-4">
               2D Art &amp; Classical Music Lessons Online. Connect, learn, and grow with world-class teachers.

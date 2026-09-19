@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { BrandLogo } from '@/components/shared/BrandLogo'
 
 export default function TeacherOnboardingPage() {
   const router = useRouter()
@@ -10,8 +11,8 @@ export default function TeacherOnboardingPage() {
     <div className="min-h-screen bg-[#050508] flex items-center justify-center px-6">
       <div className="max-w-lg w-full">
         <div className="text-center mb-10">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center mx-auto mb-5 shadow-lg shadow-[#C9A84C]/20">
-            <span className="text-black font-bold text-xl">S</span>
+          <div className="flex justify-center mb-5">
+            <BrandLogo size="xl" href={null} />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Welcome to Stanza! 🎉</h1>
           <p className="text-white/50">Let's get your teacher profile set up in 3 steps.</p>

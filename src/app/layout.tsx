@@ -7,10 +7,15 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
   title: 'Stanza — 2D Art & Classical Music Lessons Online',
   description: 'Connect with world-class teachers for Piano, Violin, Cello, Animation & 2D Art. Book lessons, pay securely, and learn via Zoom.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'Stanza',
     description: '2D Art & Classical Music Lessons Online.',
     type: 'website',
+    images: [{ url: '/logo.png', width: 1254, height: 1254, alt: 'Stanza' }],
   },
 }
 

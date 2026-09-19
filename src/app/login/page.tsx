@@ -2,6 +2,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { BrandLogo } from "@/components/shared/BrandLogo"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -48,12 +49,9 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-sm">
         <div className="text-center mb-10">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center shadow-lg shadow-[#C9A84C]/20">
-              <span className="text-black font-bold">S</span>
-            </div>
-            <span className="font-semibold text-white text-lg">Stanza</span>
-          </Link>
+          <div className="flex justify-center mb-6">
+            <BrandLogo size="xl" priority />
+          </div>
           <h1 className="text-2xl font-bold text-white mb-1.5">Welcome back</h1>
           <p className="text-white/40 text-sm">Sign in to your account</p>
         </div>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import type { AuthUser } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+import { BrandLogo } from '@/components/shared/BrandLogo'
 
 interface NavItem {
   label: string
@@ -69,12 +70,7 @@ export function DashboardSidebar({ user }: { user: AuthUser }) {
       }`}
     >
       <div className="flex items-center gap-3 px-4 h-16 border-b border-white/[0.06]">
-        <Link href="/" className="w-8 h-8 flex-shrink-0 rounded-lg bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center shadow-lg shadow-[#C9A84C]/20">
-          <span className="text-black font-bold text-sm">S</span>
-        </Link>
-        {!collapsed && (
-          <span className="font-semibold text-white text-sm whitespace-nowrap">Stanza</span>
-        )}
+        <BrandLogo size="sm" />
         <button
           onClick={() => setCollapsed(v => !v)}
           className="ml-auto text-white/30 hover:text-white p-1 rounded transition-colors hidden lg:block"
@@ -166,12 +162,7 @@ export function DashboardSidebar({ user }: { user: AuthUser }) {
             <path d="M2 4h12M2 8h12M2 12h12" />
           </svg>
         </button>
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center">
-            <span className="text-black font-bold text-xs">S</span>
-          </div>
-          <span className="font-semibold text-white text-sm">Stanza</span>
-        </Link>
+        <BrandLogo size="sm" />
       </div>
 
       {/* Mobile drawer */}

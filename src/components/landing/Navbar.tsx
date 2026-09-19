@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { BrandLogo } from '@/components/shared/BrandLogo'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -41,13 +42,7 @@ export function Navbar() {
       scrolled ? 'py-3 bg-[#050508]/80 backdrop-blur-xl border-b border-white/5' : 'py-6'
     }`}>
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E8C87A] to-[#C9A84C] flex items-center justify-center shadow-lg shadow-[#C9A84C]/20">
-            <span className="text-black font-bold text-sm">S</span>
-          </div>
-          <span className="font-semibold text-white tracking-tight">Stanza</span>
-        </Link>
+        <BrandLogo size="md" priority />
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
