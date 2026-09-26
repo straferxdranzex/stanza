@@ -14,8 +14,19 @@ export const stripe = new Stripe(stripeKey || 'sk_test_placeholder', {
   typescript: true,
 })
 
+export function isStripeConfigured(): boolean {
+  const key = process.env.STRIPE_SECRET_KEY
+  return !!key && key !== 'sk_test_placeholder'
+}
+
+/** Skip real Stripe checkout when Stripe keys are missing, or BOOKING_DEMO_MODE=true. */
+export function isBookingDemoMode(): boolean {
+  if (process.env.BOOKING_DEMO_MODE === 'true') return true
+  return !isStripeConfigured()
+}
+
 export function assertStripeConfigured() {
-  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+  if (!isStripeConfigured()) {
     throw new Error('Stripe is not configured')
   }
 }

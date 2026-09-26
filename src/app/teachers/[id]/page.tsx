@@ -1,6 +1,7 @@
 import { createServiceClient, getAuthenticatedUser } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { TeacherProfileClient } from '@/components/teacher/TeacherProfileClient'
+import { isBookingDemoMode } from '@/lib/stripe'
 
 export default async function TeacherProfilePage({ params }: { params: { id: string } }) {
   const supabase = createServiceClient()
@@ -29,10 +30,13 @@ export default async function TeacherProfilePage({ params }: { params: { id: str
 
   const isOwner = viewer?.id === teacher.id
   const isAdmin = viewer?.role === 'admin'
-  const isBookable =
-    profile?.is_verified &&
-    profile?.is_accepting_students &&
-    profile?.stripe_onboarding_complete
+  const isBookable = isBookingDemoMode()
+    ? !!profile?.is_accepting_students
+    : !!(
+        profile?.is_verified &&
+        profile?.is_accepting_students &&
+        profile?.stripe_onboarding_complete
+      )
 
   // Public marketplace only shows bookable teachers; owners/admins can always preview
   if (!isBookable && !isOwner && !isAdmin) {

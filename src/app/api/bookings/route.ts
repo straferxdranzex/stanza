@@ -1,8 +1,10 @@
 // src/app/api/bookings/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, getAuthenticatedUser, createServiceClient } from '@/lib/supabase/server'
-import { createPaymentIntent, calculateFees } from '@/lib/stripe'
+import { createPaymentIntent, calculateFees, isBookingDemoMode } from '@/lib/stripe'
+import { createMeeting } from '@/lib/zoom'
 import { CreateBookingSchema } from '@/lib/validators'
+import type { BookingWithDetails } from '@/types'
 
 async function rollbackBooking(
   bookingId: string,
@@ -73,14 +75,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lesson not found or inactive' }, { status: 404 })
     }
 
-    // ─── Step 2: Get teacher's Stripe account ────────────────────
+    // ─── Step 2: Teacher payment readiness (skipped in demo mode) ─
+    const demoMode = isBookingDemoMode()
     const { data: teacherProfile } = await supabase
       .from('teacher_profiles')
       .select('stripe_account_id, stripe_onboarding_complete')
       .eq('user_id', lesson.teacher_id)
       .single()
 
-    if (!teacherProfile?.stripe_account_id || !teacherProfile.stripe_onboarding_complete) {
+    if (
+      !demoMode &&
+      (!teacherProfile?.stripe_account_id || !teacherProfile.stripe_onboarding_complete)
+    ) {
       return NextResponse.json(
         { error: 'Teacher has not completed payment setup' },
         { status: 400 }
@@ -106,23 +112,82 @@ export async function POST(request: NextRequest) {
       throw bookingError
     }
 
+    const service = createServiceClient()
+    const { platformFeeCents, teacherPayoutCents } = calculateFees(lesson.price_cents)
+
+    // ─── Demo path: confirm without Stripe ───────────────────────
+    if (demoMode) {
+      const demoPiId = `demo_pi_${bookingId}`
+      await service.from('payments').insert({
+        booking_id: bookingId,
+        student_id: user.id,
+        teacher_id: lesson.teacher_id,
+        stripe_payment_intent_id: demoPiId,
+        amount_cents: lesson.price_cents,
+        platform_fee_cents: platformFeeCents,
+        teacher_payout_cents: teacherPayoutCents,
+        status: 'succeeded',
+        idempotency_key: `demo-${bookingId}`,
+      })
+
+      await service
+        .from('bookings')
+        .update({
+          status: 'confirmed',
+          stripe_payment_intent_id: demoPiId,
+        })
+        .eq('id', bookingId)
+
+      // Best-effort Zoom (optional while testing)
+      try {
+        const { data: fullBooking } = await service
+          .from('bookings')
+          .select(`
+            *,
+            student:users!bookings_student_id_fkey(id, full_name, avatar_url, email, timezone),
+            teacher:users!bookings_teacher_id_fkey(id, full_name, avatar_url, email, timezone),
+            lesson:lessons(id, title, duration_mins, price_cents)
+          `)
+          .eq('id', bookingId)
+          .single()
+
+        if (fullBooking) {
+          const meeting = await createMeeting(fullBooking as unknown as BookingWithDetails)
+          await service
+            .from('bookings')
+            .update({
+              zoom_meeting_id: meeting.id,
+              zoom_join_url: meeting.join_url,
+              zoom_start_url: meeting.start_url,
+            })
+            .eq('id', bookingId)
+        }
+      } catch (zoomErr) {
+        console.warn('[POST /api/bookings] Demo mode Zoom skipped:', zoomErr)
+      }
+
+      return NextResponse.json({
+        bookingId,
+        demoMode: true,
+        amount: lesson.price_cents,
+        currency: 'usd',
+      })
+    }
+
     // ─── Step 4: Stripe PaymentIntent — rollback slot if this fails ────
     const idempotencyKey = `booking-pi-${bookingId}`
-    const { platformFeeCents, teacherPayoutCents } = calculateFees(lesson.price_cents)
 
     let paymentIntentId: string | undefined
     try {
       const paymentIntent = await createPaymentIntent({
         bookingId,
         amountCents: lesson.price_cents,
-        teacherStripeAccountId: teacherProfile.stripe_account_id,
+        teacherStripeAccountId: teacherProfile!.stripe_account_id!,
         idempotencyKey,
         studentEmail: user.email,
       })
       paymentIntentId = paymentIntent.id
 
-      // Service role: payments have no student INSERT policy by design
-      const service = createServiceClient()
       const { error: paymentInsertError } = await service.from('payments').insert({
         booking_id: bookingId,
         student_id: user.id,

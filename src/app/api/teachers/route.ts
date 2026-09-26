@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { SearchTeachersSchema } from '@/lib/validators'
+import { isBookingDemoMode } from '@/lib/stripe'
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +26,15 @@ export async function GET(request: NextRequest) {
       .from('teacher_profiles')
       .select('*', { count: 'exact' })
       .eq('is_accepting_students', true)
-      .eq('is_verified', true)
-      .eq('stripe_onboarding_complete', true)
       .order('average_rating', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    // Live marketplace requires verified + Stripe; demo mode lists accepting teachers
+    if (!isBookingDemoMode()) {
+      profilesQuery = profilesQuery
+        .eq('is_verified', true)
+        .eq('stripe_onboarding_complete', true)
+    }
 
     if (minRating !== undefined) profilesQuery = profilesQuery.gte('average_rating', minRating)
     if (language) profilesQuery = profilesQuery.contains('languages', [language])

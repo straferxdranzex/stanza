@@ -65,6 +65,9 @@ export async function POST(
     const payment = Array.isArray(booking.payment) ? booking.payment[0] : booking.payment
 
     if (payment?.status === 'succeeded' && payment.stripe_payment_intent_id) {
+      const isDemoPayment = String(payment.stripe_payment_intent_id).startsWith('demo_pi_')
+
+      if (!isDemoPayment) {
       const { data: policy } = await service
         .from('cancellation_policies')
         .select('*')
@@ -91,6 +94,7 @@ export async function POST(
           reason: 'requested_by_customer',
         })
         refundId = refund.id
+      }
       }
     }
 

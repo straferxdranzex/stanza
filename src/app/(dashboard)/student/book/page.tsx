@@ -80,6 +80,13 @@ function BookPageContent() {
 
       setBookingId(data.bookingId)
 
+      // Demo / no-Stripe: booking already confirmed server-side
+      if (data.demoMode) {
+        setStep('done')
+        setBooking(false)
+        return
+      }
+
       if (!data.paymentIntentClientSecret) {
         setError('Payment could not be initialized. Please try again or contact support.')
         setBooking(false)
@@ -109,7 +116,7 @@ function BookPageContent() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-white mb-2">Payment received</h1>
+        <h1 className="text-xl font-bold text-white mb-2">Booking confirmed</h1>
         <p className="text-white/50 text-sm mb-6">
           Your lesson with {teacher?.full_name} is confirmed.
           A Zoom link will appear on your bookings page once ready.
@@ -182,11 +189,11 @@ function BookPageContent() {
                 disabled={booking}
                 className="btn-primary w-full py-3 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {booking ? 'Reserving slot…' : `Continue to payment — $${((lesson?.price_cents ?? 0) / 100).toFixed(2)}`}
+                {booking ? 'Reserving slot…' : `Confirm booking — $${((lesson?.price_cents ?? 0) / 100).toFixed(2)}`}
               </button>
 
               <p className="text-xs text-white/30 text-center">
-                Your slot is reserved when you start checkout and released if payment fails or expires. Platform fee: 1%.
+                Your slot is reserved when you continue. If Stripe is not configured, the booking confirms immediately with no card charge.
               </p>
             </>
           )}
