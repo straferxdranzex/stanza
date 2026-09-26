@@ -1,16 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/bookings/expire-pending",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/bookings/maintenance",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/bookings/send-reminders",
-      "schedule": "*/10 * * * *"
+      "path": "/api/bookings/cron",
+      "schedule": "0 12 * * *"
     }
   ]
 }

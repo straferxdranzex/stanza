@@ -37,13 +37,19 @@ Students book teachers, pay via Stripe Connect (1% platform fee), and join lesso
    `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';`
 9. Teachers must: Connect Stripe → create lesson → set availability → get admin-verified
 
-### Cron jobs (automatic on Vercel)
+### Cron jobs
 
-| Path | Schedule |
-|------|----------|
-| `/api/bookings/expire-pending` | every 10 min |
-| `/api/bookings/maintenance` | every 15 min |
-| `/api/bookings/send-reminders` | every 10 min |
+Vercel Hobby allows **one cron, once per day**. `vercel.json` schedules `/api/bookings/cron` daily at 12:00 UTC.
+
+For live bookings (recommended), also hit the same endpoint every ~10 minutes from an external scheduler (cron-job.org, EasyCron, etc.):
+
+```bash
+curl -X GET "$APP_URL/api/bookings/cron" -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Individual endpoints still work: `/api/bookings/expire-pending`, `/maintenance`, `/send-reminders`.
+
+Upgrade to Vercel Pro if you want native multi/minute crons.
 
 ---
 

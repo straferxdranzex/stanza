@@ -26,6 +26,7 @@ const PUBLIC_API_EXCEPTIONS = [
   '/api/bookings/expire-pending',
   '/api/bookings/maintenance',
   '/api/bookings/send-reminders',
+  '/api/bookings/cron',
 ]
 
 const AUTH_ROUTES = ['/login', '/register', '/forgot-password']
