@@ -41,14 +41,16 @@ function RegisterForm() {
       return
     }
 
+    const signupRole: 'student' | 'teacher' = role === 'teacher' ? 'teacher' : 'student'
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role },
+        data: { full_name: fullName, role: signupRole },
         emailRedirectTo: `${appUrl}/auth/callback?next=${
-          role === 'teacher' ? '/teacher/onboarding' : '/student'
+          signupRole === 'teacher' ? '/teacher/onboarding' : '/student'
         }`,
       },
     })
@@ -66,7 +68,7 @@ function RegisterForm() {
       return
     }
 
-    router.push(role === 'teacher' ? '/teacher/onboarding' : '/student')
+    router.push(signupRole === 'teacher' ? '/teacher/onboarding' : '/student')
   }
 
   return (
@@ -102,21 +104,29 @@ function RegisterForm() {
             </div>
           ) : (
             <>
-              <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl">
-                {(['student', 'teacher'] as const).map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition-all capitalize ${
-                      role === r
-                        ? 'bg-gradient-to-r from-[#E8C87A] to-[#C9A84C] text-black shadow'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    {r === 'student' ? 'Student' : 'Teacher'}
-                  </button>
-                ))}
+              <div className="mb-6">
+                <p className="text-xs text-white/40 mb-2 font-medium text-center">I want to join as</p>
+                <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+                  {(['student', 'teacher'] as const).map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      className={`flex-1 py-2.5 text-sm rounded-lg font-medium transition-all ${
+                        role === r
+                          ? 'bg-gradient-to-r from-[#E8C87A] to-[#C9A84C] text-black shadow'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      {r === 'student' ? 'Student' : 'Teacher'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-white/35 text-center mt-2">
+                  {role === 'student'
+                    ? 'Book lessons with teachers'
+                    : 'Offer lessons and get paid'}
+                </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -168,6 +178,9 @@ function RegisterForm() {
                 >
                   {loading ? 'Creating account…' : `Create ${role} account`}
                 </button>
+                <p className="text-[11px] text-amber-200/50 text-center">
+                  Creating a <span className="text-amber-200/80 font-medium">{role}</span> account
+                </p>
               </form>
 
               <p className="text-center text-xs text-white/30 mt-4">
