@@ -72,3 +72,7 @@ export async function POST(request: NextRequest) {
     zoomFailed,
   })
 }
+
+export async function GET(request: NextRequest) {
+  return POST(request)
+}

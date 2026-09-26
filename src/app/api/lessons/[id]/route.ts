@@ -50,13 +50,14 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
+  // Soft-delete so historical bookings retain lesson references
   const supabase = await createServerSupabaseClient()
   const { error } = await supabase
     .from('lessons')
-    .delete()
+    .update({ is_active: false })
     .eq('id', params.id)
     .eq('teacher_id', user.id)
 
-  if (error) return NextResponse.json({ error: 'Failed to delete lesson' }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Failed to deactivate lesson' }, { status: 500 })
   return NextResponse.json({ success: true })
 }

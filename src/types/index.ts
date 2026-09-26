@@ -9,7 +9,7 @@ export type DisputeStatus = 'open' | 'under_review' | 'resolved_student' | 'reso
 export type NotificationType =
   | 'booking_confirmed' | 'booking_cancelled' | 'booking_reminder'
   | 'payment_received' | 'review_received' | 'message_received'
-  | 'teacher_approved' | 'refund_processed'
+  | 'teacher_approved' | 'refund_processed' | 'dispute_opened'
 export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly'
 export type LessonLevel = 'beginner' | 'intermediate' | 'advanced' | 'all_levels'
 export type LessonLanguage = 'english' | 'spanish' | 'french' | 'german' | 'other'

@@ -50,9 +50,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Auto-complete if the lesson has ended but status wasn't updated yet
+    // Auto-complete via service role — students cannot UPDATE bookings to completed under RLS
     if (booking.status === 'confirmed' && lessonEnded) {
-      await supabase
+      const service = createServiceClient()
+      await service
         .from('bookings')
         .update({ status: 'completed' })
         .eq('id', booking_id)
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
       .from('reviews')
       .select('id')
       .eq('booking_id', booking_id)
-      .single()
+      .maybeSingle()
 
     if (existingReview) {
       return NextResponse.json(
@@ -73,8 +74,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert review
-    const { data: review, error: insertError } = await supabase
+    // Insert review — policy requires status=completed; ensure via re-check with service if needed
+    const serviceSupabase = createServiceClient()
+    const { data: review, error: insertError } = await serviceSupabase
       .from('reviews')
       .insert({
         booking_id,
@@ -88,8 +90,6 @@ export async function POST(request: NextRequest) {
 
     if (insertError) throw insertError
 
-    // Notify teacher (service role to bypass RLS on notifications)
-    const serviceSupabase = createServiceClient()
     await serviceSupabase.from('notifications').insert({
       user_id: booking.teacher_id,
       type: 'review_received' as const,

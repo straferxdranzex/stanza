@@ -11,10 +11,12 @@ function JoinState({
   title,
   body,
   detail,
+  bookingsHref,
 }: {
   title: string
   body: string
   detail?: string
+  bookingsHref: string
 }) {
   return (
     <div className="min-h-screen bg-[#050508] flex items-center justify-center px-6 relative">
@@ -28,7 +30,7 @@ function JoinState({
         <h1 className="text-xl font-semibold text-white mb-2">{title}</h1>
         <p className="text-white/50 text-sm leading-relaxed">{body}</p>
         {detail && <p className="text-white/30 text-xs mt-3">{detail}</p>}
-        <Link href="/student/bookings" className="btn-primary inline-block mt-6 px-5 py-2.5 text-sm">
+        <Link href={bookingsHref} className="btn-primary inline-block mt-6 px-5 py-2.5 text-sm">
           Back to bookings
         </Link>
       </div>
@@ -40,6 +42,9 @@ export default async function JoinZoomPage({ params }: Props) {
   const user = await getAuthenticatedUser()
   if (!user) redirect(`/login?redirect=/join/${params.bookingId}`)
 
+  const bookingsHref =
+    user.role === 'teacher' ? '/teacher/bookings' : user.role === 'admin' ? '/admin/bookings' : '/student/bookings'
+
   const supabase = await createServerSupabaseClient()
 
   const { data: booking } = await supabase
@@ -48,13 +53,13 @@ export default async function JoinZoomPage({ params }: Props) {
     .eq('id', params.bookingId)
     .single()
 
-  if (!booking) redirect('/student')
+  if (!booking) redirect(bookingsHref)
 
   const isStudent = booking.student_id === user.id
   const isTeacher = booking.teacher_id === user.id
 
   if (!isStudent && !isTeacher && user.role !== 'admin') {
-    redirect('/student')
+    redirect(bookingsHref)
   }
 
   if (booking.status !== 'confirmed') {
@@ -62,6 +67,7 @@ export default async function JoinZoomPage({ params }: Props) {
       <JoinState
         title="Meeting not available"
         body={`This booking is currently ${booking.status}.`}
+        bookingsHref={bookingsHref}
       />
     )
   }
@@ -78,6 +84,7 @@ export default async function JoinZoomPage({ params }: Props) {
         title="Too early to join"
         body={`The meeting opens ${minutesUntil} minutes before the lesson starts.`}
         detail={`Starts at ${scheduledAt.toLocaleString()}`}
+        bookingsHref={bookingsHref}
       />
     )
   }
@@ -87,6 +94,7 @@ export default async function JoinZoomPage({ params }: Props) {
       <JoinState
         title="Lesson ended"
         body="This lesson window has already closed."
+        bookingsHref={bookingsHref}
       />
     )
   }
@@ -98,6 +106,7 @@ export default async function JoinZoomPage({ params }: Props) {
       <JoinState
         title="Meeting link not ready"
         body="Zoom is still being set up for this lesson. Try again in a moment, or contact support if it persists."
+        bookingsHref={bookingsHref}
       />
     )
   }

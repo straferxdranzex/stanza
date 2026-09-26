@@ -18,24 +18,36 @@ Students book teachers, pay via Stripe Connect (1% platform fee), and join lesso
 | Email | Resend |
 | Validation | Zod |
 | Tests | Vitest |
+| Hosting | Vercel (crons in `vercel.json`) |
 
 ---
 
-## Features
+## Launch checklist (production)
 
-- Student & teacher registration with RBAC
-- Lesson catalog by category
-- Availability calendar + atomic slot booking
-- Stripe Payment Element checkout
-- Auto Zoom meetings on payment success
-- Secure `/join/[bookingId]` gate
-- Messaging, reviews, earnings, payment history
-- Admin: users, bookings, transactions, analytics, disputes
-- Cron endpoints for abandoned checkouts + Zoom retry
+1. Fill all secrets in Vercel / `.env.local` from `.env.example`
+2. `supabase db push` (includes `005_production_hardening.sql`)
+3. Stripe Dashboard → Connect Express enabled; webhook pointing to  
+   `https://YOUR_DOMAIN/api/payments/webhook`  
+   Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`, `account.updated`, `transfer.created`
+4. Set `CRON_SECRET` (32+ chars) — Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
+5. Supabase Auth → URL config: add `https://YOUR_DOMAIN/auth/callback` to redirect allow list
+6. Resend: verify `EMAIL_FROM_DOMAIN`
+7. Zoom S2S OAuth app credentials
+8. Seed first admin in SQL:  
+   `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';`
+9. Teachers must: Connect Stripe → create lesson → set availability → get admin-verified
+
+### Cron jobs (automatic on Vercel)
+
+| Path | Schedule |
+|------|----------|
+| `/api/bookings/expire-pending` | every 10 min |
+| `/api/bookings/maintenance` | every 15 min |
+| `/api/bookings/send-reminders` | every 10 min |
 
 ---
 
-## Setup
+## Setup (local)
 
 ### 1. Install
 
@@ -46,14 +58,7 @@ cp .env.example .env.local
 
 ### 2. Environment
 
-Fill `.env.local` (see `.env.example`):
-
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`
-- `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`
-- `RESEND_API_KEY` / `EMAIL_FROM_DOMAIN`
-- `NEXT_PUBLIC_APP_URL`
-- `CRON_SECRET`
+Fill `.env.local` (see `.env.example`).
 
 ### 3. Database
 
@@ -68,37 +73,20 @@ supabase db push
 stripe listen --forward-to localhost:3000/api/payments/webhook
 ```
 
-Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`, `account.updated`, `transfer.created`
-
 ### 5. Run
 
 ```bash
 npm run dev
 ```
 
-### 6. Cron (production)
-
-Every ~10 minutes:
-
-```bash
-curl -X POST "$APP_URL/api/bookings/expire-pending" -H "Authorization: Bearer $CRON_SECRET"
-curl -X POST "$APP_URL/api/bookings/maintenance" -H "Authorization: Bearer $CRON_SECRET"
-```
-
 ---
 
-## Project structure
+## Core flows
 
-```
-src/
-  app/                  # Pages + API routes
-  components/           # Landing, dashboards, booking, admin
-  lib/                  # supabase, stripe, zoom, email, validators
-  types/
-supabase/migrations/    # Schema + RLS
-tests/
-middleware.ts           # Auth + RBAC
-```
+- **Auth:** register (student/teacher) → email confirm (if enabled) → login → role dashboard; forgot/reset password via `/forgot-password`
+- **Book:** browse `/teachers` → book → Stripe Payment Element → webhook confirms → Zoom created → `/join/[id]`
+- **Cancel:** policy-based refund + slot release + email
+- **Teacher:** onboarding includes Stripe Connect before students can pay
 
 ---
 

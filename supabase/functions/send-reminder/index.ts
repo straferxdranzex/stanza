@@ -69,10 +69,7 @@ Deno.serve(async (req) => {
             <p style="margin:0 0 8px"><strong>Time:</strong> ${formattedTime}</p>
             <p style="margin:0"><strong>Duration:</strong> ${lesson.duration_mins} minutes</p>
           </div>
-          ${booking.zoom_join_url
-            ? `<a href="${booking.zoom_join_url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px">Join Zoom Meeting</a>`
-            : `<a href="${APP_URL}/join/${booking.id}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px">Get Meeting Link</a>`
-          }
+          ${`<a href="${APP_URL}/join/${booking.id}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px">Join lesson securely</a>`}
         </div>
       `
 
@@ -83,7 +80,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Elevato Piano <lessons@elevatopiano.com>',
+          from: `Stanza <lessons@${Deno.env.get('EMAIL_FROM_DOMAIN') ?? 'stanza.app'}>`,
           to: student.email,
           subject: `Your lesson with ${teacher.full_name} starts in 1 hour`,
           html: emailHtml,

@@ -13,11 +13,16 @@ export function TeacherBookingsClient({ bookings, timezone }: Props) {
   const router = useRouter()
 
   async function cancelBooking(id: string) {
-    await fetch(`/api/bookings/${id}/cancel`, {
+    const res = await fetch(`/api/bookings/${id}/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: 'Cancelled by teacher' }),
     })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Could not cancel booking')
+      return
+    }
     router.refresh()
   }
 

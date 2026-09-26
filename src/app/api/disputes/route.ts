@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       await service.from('notifications').insert(
         admins.map(a => ({
           user_id: a.id,
-          type: 'booking_cancelled' as const,
+          type: 'dispute_opened' as const,
           title: 'New dispute opened',
           body: reason.slice(0, 120),
           data: { dispute_id: dispute.id, booking_id },

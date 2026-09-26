@@ -3,11 +3,22 @@ import Stripe from 'stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 
 // Stripe only initialised when key is present — API routes check this before use
-const stripeKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"
-export const stripe = new Stripe(stripeKey, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+
+if (!stripeKey || stripeKey === 'sk_test_placeholder') {
+  console.warn('[Stripe] STRIPE_SECRET_KEY is missing or placeholder — payment APIs will fail')
+}
+
+export const stripe = new Stripe(stripeKey || 'sk_test_placeholder', {
   apiVersion: '2024-06-20',
   typescript: true,
 })
+
+export function assertStripeConfigured() {
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+    throw new Error('Stripe is not configured')
+  }
+}
 
 // Platform fee: 1% (100 basis points)
 export const PLATFORM_FEE_BPS = 100 // 1%
@@ -36,6 +47,7 @@ export async function createPaymentIntent({
   idempotencyKey: string
   studentEmail: string
 }) {
+  assertStripeConfigured()
   const { platformFeeCents } = calculateFees(amountCents)
 
   const intent = await stripe.paymentIntents.create(
@@ -72,6 +84,7 @@ export async function createConnectAccountLink({
   teacherId: string
   teacherEmail: string
 }) {
+  assertStripeConfigured()
   // Create or retrieve existing connected account
   let accountId: string
 

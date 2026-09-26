@@ -71,21 +71,43 @@ export async function POST(request: NextRequest) {
           .from('bookings')
           .update({ status: 'confirmed' })
           .eq('id', bookingId)
+          .eq('status', 'pending')
           .select(`
             *,
             student:users!bookings_student_id_fkey(id, full_name, avatar_url, email, timezone),
             teacher:users!bookings_teacher_id_fkey(id, full_name, avatar_url, email, timezone),
             lesson:lessons(id, title, duration_mins, price_cents)
           `)
-          .single()
+          .maybeSingle()
 
-        if (bookingError || !booking) {
-          throw bookingError ?? new Error(`Booking ${bookingId} not found after payment`)
+        // Already confirmed, cancelled, or missing — still try Zoom if confirmed without meeting
+        if (bookingError) {
+          throw bookingError
         }
 
-        if (!(booking as any).zoom_meeting_id) {
+        let activeBooking = booking
+        if (!activeBooking) {
+          const { data: existing } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              student:users!bookings_student_id_fkey(id, full_name, avatar_url, email, timezone),
+              teacher:users!bookings_teacher_id_fkey(id, full_name, avatar_url, email, timezone),
+              lesson:lessons(id, title, duration_mins, price_cents)
+            `)
+            .eq('id', bookingId)
+            .maybeSingle()
+
+          if (!existing || existing.status === 'cancelled' || existing.status === 'refunded') {
+            console.warn(`[Stripe Webhook] Skipping confirm for booking ${bookingId} status=${existing?.status}`)
+            break
+          }
+          activeBooking = existing
+        }
+
+        if (!(activeBooking as any).zoom_meeting_id) {
           try {
-            const meeting = await createMeeting(booking as unknown as BookingWithDetails)
+            const meeting = await createMeeting(activeBooking as unknown as BookingWithDetails)
             const { error: zoomUpdateError } = await supabase
               .from('bookings')
               .update({
@@ -97,11 +119,9 @@ export async function POST(request: NextRequest) {
 
             if (zoomUpdateError) throw zoomUpdateError
           } catch (zoomErr) {
-            // Payment already succeeded — don't fail the webhook (Stripe would retry forever).
-            // Notify teacher so Zoom can be set up manually / via a later job.
             console.error('[Stripe Webhook] Zoom meeting creation failed:', zoomErr)
             await supabase.from('notifications').insert({
-              user_id: (booking as any).teacher_id,
+              user_id: (activeBooking as any).teacher_id,
               type: 'booking_confirmed',
               title: 'Booking confirmed — Zoom setup needed',
               body: `Booking ${bookingId} confirmed but Zoom meeting creation failed. Please set up manually.`,
@@ -111,20 +131,20 @@ export async function POST(request: NextRequest) {
         }
 
         await Promise.allSettled([
-          sendBookingConfirmationEmail(booking as unknown as BookingWithDetails),
+          sendBookingConfirmationEmail(activeBooking as unknown as BookingWithDetails),
           supabase.from('notifications').insert([
             {
-              user_id: (booking as any).student_id,
+              user_id: (activeBooking as any).student_id,
               type: 'booking_confirmed',
               title: 'Booking confirmed!',
-              body: `Your lesson "${(booking as any).lesson?.title}" is confirmed.`,
+              body: `Your lesson "${(activeBooking as any).lesson?.title}" is confirmed.`,
               data: { booking_id: bookingId },
             },
             {
-              user_id: (booking as any).teacher_id,
+              user_id: (activeBooking as any).teacher_id,
               type: 'booking_confirmed',
               title: 'New lesson booked',
-              body: `${(booking as any).student?.full_name} booked "${(booking as any).lesson?.title}".`,
+              body: `${(activeBooking as any).student?.full_name} booked "${(activeBooking as any).lesson?.title}".`,
               data: { booking_id: bookingId },
             },
           ]),

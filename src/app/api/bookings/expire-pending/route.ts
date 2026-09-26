@@ -73,3 +73,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ released, checked: stale.length })
 }
+
+export async function GET(request: NextRequest) {
+  return POST(request)
+}

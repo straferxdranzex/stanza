@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, getAuthenticatedUser, createServiceClient } from '@/lib/supabase/server'
 import { processRefund, calculateRefundAmount } from '@/lib/stripe'
 import { deleteMeeting } from '@/lib/zoom'
+import { sendCancellationEmail } from '@/lib/email'
 import { CancelBookingSchema } from '@/lib/validators'
+import type { BookingWithDetails } from '@/types'
 
 export async function POST(
   request: NextRequest,
@@ -22,8 +24,8 @@ export async function POST(
 
     const { booking_id, reason } = parsed.data
     const supabase = await createServerSupabaseClient()
+    const service = createServiceClient()
 
-    // Fetch booking with payment info
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
       .select(`
@@ -31,7 +33,9 @@ export async function POST(
         payment:payments(
           id, amount_cents, stripe_payment_intent_id, status
         ),
-        lesson:lessons(duration_mins, price_cents)
+        lesson:lessons(id, title, duration_mins, price_cents),
+        student:users!bookings_student_id_fkey(id, full_name, email, timezone),
+        teacher:users!bookings_teacher_id_fkey(id, full_name, email, timezone)
       `)
       .eq('id', booking_id)
       .single()
@@ -40,8 +44,6 @@ export async function POST(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    // Authorization: student can cancel their own, teacher can cancel their own
-    // Admin can cancel any
     const canCancel =
       user.role === 'admin' ||
       (user.role === 'student' && booking.student_id === user.id) ||
@@ -58,15 +60,12 @@ export async function POST(
       )
     }
 
-    // ─── Calculate Refund ─────────────────────────────────────────
     let refundCents = 0
     let refundId: string | undefined
     const payment = Array.isArray(booking.payment) ? booking.payment[0] : booking.payment
 
     if (payment?.status === 'succeeded' && payment.stripe_payment_intent_id) {
-      // Get cancellation policy
-      const serviceSupabase = createServiceClient()
-      const { data: policy } = await serviceSupabase
+      const { data: policy } = await service
         .from('cancellation_policies')
         .select('*')
         .eq('teacher_id', booking.teacher_id)
@@ -95,15 +94,14 @@ export async function POST(
       }
     }
 
-    // ─── Cancel Zoom Meeting ───────────────────────────────────────
     if (booking.zoom_meeting_id) {
       await deleteMeeting(booking.zoom_meeting_id).catch(err =>
         console.error('[Cancel] Zoom meeting deletion failed:', err)
       )
     }
 
-    // ─── Update Booking Status ────────────────────────────────────
-    await supabase
+    // Service role: students cannot UPDATE slots or arbitrary booking fields under RLS
+    await service
       .from('bookings')
       .update({
         status: 'cancelled',
@@ -113,15 +111,19 @@ export async function POST(
       })
       .eq('id', booking_id)
 
-    // ─── Free the slot ────────────────────────────────────────────
-    await supabase
+    await service
       .from('availability_slots')
       .update({ is_booked: false })
       .eq('id', booking.slot_id)
 
-    // ─── Notify both parties ──────────────────────────────────────
-    const serviceSupabase = createServiceClient()
-    await serviceSupabase.from('notifications').insert([
+    const cancelledByStudent = user.id === booking.student_id
+    const counterpartBody = cancelledByStudent
+      ? `A student cancelled their booking for ${new Date(booking.scheduled_at).toLocaleString()}.`
+      : user.role === 'teacher'
+        ? `Your teacher cancelled the booking for ${new Date(booking.scheduled_at).toLocaleString()}.`
+        : `An admin cancelled the booking for ${new Date(booking.scheduled_at).toLocaleString()}.`
+
+    await service.from('notifications').insert([
       {
         user_id: booking.student_id,
         type: 'booking_cancelled' as const,
@@ -135,17 +137,21 @@ export async function POST(
         user_id: booking.teacher_id,
         type: 'booking_cancelled' as const,
         title: 'Booking cancelled',
-        body: `A student cancelled their booking for ${new Date(booking.scheduled_at).toLocaleString()}.`,
+        body: counterpartBody,
         data: { booking_id },
       },
     ])
+
+    await sendCancellationEmail(
+      booking as unknown as BookingWithDetails,
+      refundCents
+    ).catch(err => console.error('[Cancel] Email failed:', err))
 
     return NextResponse.json({
       success: true,
       refundAmount: refundCents,
       refundId,
     })
-
   } catch (error) {
     console.error('[POST /api/bookings/[id]/cancel]', error)
     return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 })

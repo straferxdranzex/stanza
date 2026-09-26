@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
       .from('teacher_profiles')
       .select('*', { count: 'exact' })
       .eq('is_accepting_students', true)
+      .eq('is_verified', true)
+      .eq('stripe_onboarding_complete', true)
       .order('average_rating', { ascending: false })
       .range(offset, offset + limit - 1)
 

@@ -118,28 +118,56 @@ export function Footer() {
               2D Art &amp; Classical Music Lessons Online. Connect, learn, and grow with world-class teachers.
             </p>
             <div className="flex gap-3">
-              {['Twitter', 'Instagram', 'YouTube'].map(s => (
-                <a key={s} href="#" className="w-8 h-8 rounded-lg glass flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-xs">
-                  {s[0]}
-                </a>
-              ))}
+              {/* Social profiles — update URLs when accounts are live */}
             </div>
           </div>
 
           {/* Links */}
           {[
-            { title: 'Subjects', links: ['Piano', 'Violin', 'Cello', 'Animation', '2D Art'] },
-            { title: 'Platform', links: ['Browse teachers', 'How it works', 'Pricing', 'Reviews'] },
-            { title: 'Teachers', links: ['Become a teacher', 'Teacher resources', 'Stripe payouts', 'Support'] },
-            { title: 'Company', links: ['About', 'Blog', 'Careers', 'Privacy', 'Terms'] },
+            {
+              title: 'Subjects',
+              links: [
+                { label: 'Piano', href: '/teachers?category=piano' },
+                { label: 'Violin', href: '/teachers?category=violin' },
+                { label: 'Cello', href: '/teachers?category=cello' },
+                { label: 'Animation', href: '/teachers?category=animation' },
+                { label: '2D Art', href: '/teachers?category=2d_art' },
+              ],
+            },
+            {
+              title: 'Platform',
+              links: [
+                { label: 'Browse teachers', href: '/teachers' },
+                { label: 'How it works', href: '/#how-it-works' },
+                { label: 'Pricing', href: '/#pricing' },
+                { label: 'FAQ', href: '/#faq' },
+              ],
+            },
+            {
+              title: 'Teachers',
+              links: [
+                { label: 'Become a teacher', href: '/register?role=teacher' },
+                { label: 'Teacher dashboard', href: '/teacher' },
+                { label: 'Stripe payouts', href: '/teacher/settings/stripe' },
+                { label: 'Sign in', href: '/login' },
+              ],
+            },
+            {
+              title: 'Company',
+              links: [
+                { label: 'Privacy', href: '/privacy' },
+                { label: 'Terms', href: '/terms' },
+                { label: 'Get started', href: '/register' },
+              ],
+            },
           ].map(col => (
             <div key={col.title}>
               <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-4">{col.title}</h4>
               <ul className="space-y-3">
                 {col.links.map(link => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">
-                      {link}
+                  <li key={link.label}>
+                    <a href={link.href} className="text-sm text-white/40 hover:text-white transition-colors">
+                      {link.label}
                     </a>
                   </li>
                 ))}

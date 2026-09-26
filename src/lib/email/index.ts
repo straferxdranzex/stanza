@@ -11,6 +11,11 @@ interface EmailPayload {
 }
 
 async function sendEmail({ to, subject, html }: EmailPayload): Promise<void> {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM_DOMAIN) {
+    console.warn('[Email] RESEND_API_KEY or EMAIL_FROM_DOMAIN missing — skip send')
+    return
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -28,7 +33,6 @@ async function sendEmail({ to, subject, html }: EmailPayload): Promise<void> {
   if (!res.ok) {
     const error = await res.text()
     console.error('[Email] Send failed:', error)
-    // Don't throw — email failure shouldn't block core functionality
   }
 }
 
@@ -113,7 +117,10 @@ export async function sendBookingConfirmationEmail(
       </div>
     </div>
     <p>Your Zoom meeting link will be available on your dashboard 30 minutes before the lesson.</p>
-    <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/bookings/${booking.id}" class="btn">View Booking</a>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/join/${booking.id}" class="btn">Join lesson</a>
+    <p style="margin-top:16px;font-size:13px;color:#666">
+      Or view all bookings: <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/bookings">Student dashboard</a>
+    </p>
   `
 
   // Email student
@@ -141,7 +148,10 @@ export async function sendBookingConfirmationEmail(
         <span class="info-value">${formatDateTime(booking.scheduled_at, teacherTimezone)}</span>
       </div>
     </div>
-    <a href="${process.env.NEXT_PUBLIC_APP_URL}/teacher/bookings/${booking.id}" class="btn">View Booking</a>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/join/${booking.id}" class="btn">Start lesson</a>
+    <p style="margin-top:16px;font-size:13px;color:#666">
+      Or view bookings: <a href="${process.env.NEXT_PUBLIC_APP_URL}/teacher/bookings">Teacher dashboard</a>
+    </p>
   `
 
   await sendEmail({
@@ -170,10 +180,9 @@ export async function sendLessonReminderEmail(
         <span class="info-value">${booking.teacher.full_name}</span>
       </div>
     </div>
-    ${booking.zoom_join_url
-      ? `<p>Your Zoom link is ready:</p>
-         <a href="${booking.zoom_join_url}" class="btn">Join Zoom Meeting</a>`
-      : `<a href="${process.env.NEXT_PUBLIC_APP_URL}/student/bookings/${booking.id}" class="btn">Get Meeting Link</a>`
+    ${booking.zoom_join_url || booking.id
+      ? `<a href="${process.env.NEXT_PUBLIC_APP_URL}/join/${booking.id}" class="btn">Join lesson securely</a>`
+      : `<a href="${process.env.NEXT_PUBLIC_APP_URL}/student/bookings" class="btn">View bookings</a>`
     }
   `
 

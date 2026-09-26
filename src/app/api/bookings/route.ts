@@ -4,7 +4,11 @@ import { createServerSupabaseClient, getAuthenticatedUser, createServiceClient }
 import { createPaymentIntent, calculateFees } from '@/lib/stripe'
 import { CreateBookingSchema } from '@/lib/validators'
 
-async function rollbackBooking(bookingId: string, slotId: string) {
+async function rollbackBooking(
+  bookingId: string,
+  slotId: string,
+  paymentIntentId?: string
+) {
   const supabase = createServiceClient()
   await supabase
     .from('bookings')
@@ -21,6 +25,15 @@ async function rollbackBooking(bookingId: string, slotId: string) {
     .eq('id', slotId)
 
   await supabase.from('payments').delete().eq('booking_id', bookingId)
+
+  if (paymentIntentId) {
+    try {
+      const { stripe } = await import('@/lib/stripe')
+      await stripe.paymentIntents.cancel(paymentIntentId)
+    } catch (err) {
+      console.error('[rollbackBooking] Failed to cancel PaymentIntent:', err)
+    }
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -97,6 +110,7 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = `booking-pi-${bookingId}`
     const { platformFeeCents, teacherPayoutCents } = calculateFees(lesson.price_cents)
 
+    let paymentIntentId: string | undefined
     try {
       const paymentIntent = await createPaymentIntent({
         bookingId,
@@ -105,8 +119,11 @@ export async function POST(request: NextRequest) {
         idempotencyKey,
         studentEmail: user.email,
       })
+      paymentIntentId = paymentIntent.id
 
-      const { error: paymentInsertError } = await supabase.from('payments').insert({
+      // Service role: payments have no student INSERT policy by design
+      const service = createServiceClient()
+      const { error: paymentInsertError } = await service.from('payments').insert({
         booking_id: bookingId,
         student_id: user.id,
         teacher_id: lesson.teacher_id,
@@ -122,10 +139,14 @@ export async function POST(request: NextRequest) {
         throw paymentInsertError
       }
 
-      await supabase
+      const { error: bookingUpdateError } = await service
         .from('bookings')
         .update({ stripe_payment_intent_id: paymentIntent.id })
         .eq('id', bookingId)
+
+      if (bookingUpdateError) {
+        throw bookingUpdateError
+      }
 
       return NextResponse.json({
         bookingId,
@@ -135,7 +156,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (stripeOrDbError) {
       console.error('[POST /api/bookings] Payment setup failed, rolling back:', stripeOrDbError)
-      await rollbackBooking(bookingId, slot_id)
+      await rollbackBooking(bookingId, slot_id, paymentIntentId)
       return NextResponse.json(
         { error: 'Could not start payment. The slot has been released — please try again.' },
         { status: 502 }

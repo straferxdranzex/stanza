@@ -1,9 +1,10 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, getAuthenticatedUser } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { TeacherProfileClient } from '@/components/teacher/TeacherProfileClient'
 
 export default async function TeacherProfilePage({ params }: { params: { id: string } }) {
   const supabase = createServiceClient()
+  const viewer = await getAuthenticatedUser()
 
   const { data: teacher } = await supabase
     .from('users')
@@ -12,9 +13,9 @@ export default async function TeacherProfilePage({ params }: { params: { id: str
       teacher_profiles(
         id, headline, bio, experience_years, specialties, languages,
         is_verified, average_rating, total_reviews, total_lessons_taught,
-        is_accepting_students
+        is_accepting_students, stripe_onboarding_complete
       ),
-      lessons(id, title, description, duration_mins, price_cents, level, is_active)
+      lessons(id, title, description, duration_mins, price_cents, level, is_active, category)
     `)
     .eq('id', params.id)
     .eq('role', 'teacher')
@@ -26,7 +27,17 @@ export default async function TeacherProfilePage({ params }: { params: { id: str
     ? teacher.teacher_profiles[0]
     : teacher.teacher_profiles
 
-  // Show profile even if unverified — verified badge shown conditionally in UI
+  const isOwner = viewer?.id === teacher.id
+  const isAdmin = viewer?.role === 'admin'
+  const isBookable =
+    profile?.is_verified &&
+    profile?.is_accepting_students &&
+    profile?.stripe_onboarding_complete
+
+  // Public marketplace only shows bookable teachers; owners/admins can always preview
+  if (!isBookable && !isOwner && !isAdmin) {
+    notFound()
+  }
 
   const { data: reviews } = await supabase
     .from('reviews')
@@ -39,7 +50,7 @@ export default async function TeacherProfilePage({ params }: { params: { id: str
     .order('created_at', { ascending: false })
     .limit(10)
 
-  const activeLessons = (teacher.lessons as any[]).filter((l: any) => l.is_active)
+  const activeLessons = ((teacher.lessons as any[]) ?? []).filter((l: any) => l.is_active)
 
   return (
     <TeacherProfileClient

@@ -186,7 +186,7 @@ function BookPageContent() {
               </button>
 
               <p className="text-xs text-white/30 text-center">
-                Your slot is held only after payment succeeds. Platform fee: 1%.
+                Your slot is reserved when you start checkout and released if payment fails or expires. Platform fee: 1%.
               </p>
             </>
           )}
